@@ -5,29 +5,20 @@ import (
 	"errors"
 	"fmt"
 
-	//"os"
 	"strings"
 	"time"
 
-	//"unicode"
-
-	//"hash/adler32"
-
-	//"go/format"
 	"net/http"
 	"strconv"
 
-	//"time"
+
 
 	"github.com/gin-gonic/gin"
-	//"github.com/go-redis/redis"
 	"database/sql"
 
 	"github.com/biter777/countries"
 	_ "github.com/go-sql-driver/mysql"
 )
-
-var balence = 0 //餘額
 
 // enum
 const ( //Gender
@@ -62,123 +53,13 @@ type conditions struct {
 func main() {
 	r := gin.Default()
 	r.RedirectFixedPath = true //可接受uri大小寫不同
-	r.GET("/ping", test)
-	//json頁面三種寫法
-	r.GET("/json1", json1)
-	r.GET("/json2", json2)
-	r.GET("/json3", json3)
-	r.GET("/para1", para1)        //Query Params
-	r.GET("/para2/:input", para2) //Path Params
-	r.POST("/post", post)
-	r.Any("/any", any)
-	//銀行
-	r.GET("/deposit/:input", deposit)
-	r.GET("/withdraw/:input", withdraw)
-	r.GET("/balence", getBalence)
 	//Admin API
 	r.POST("/api/v1/ad", ad)
 	//Public API
 	r.GET("/api/v1/ad/get", public)
 	r.Run(":8080") // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 }
-func test(c *gin.Context) {
-	str := []byte("ok")                      // 對於[]byte感到疑惑嗎？ 因為網頁傳輸沒有string的概念，都是要轉成byte字節方式進行傳輸
-	c.Data(http.StatusOK, "text/plain", str) // 指定contentType為 text/plain，就是傳輸格式為純文字啦～
-}
-func json1(c *gin.Context) {
-	m := map[string]string{"status": "ok"}
-	j, _ := json.Marshal(m)
-	c.Data(http.StatusOK, "application/json", j)
-}
-func json2(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"狀態": "ok",
-	})
-}
-func json3(c *gin.Context) {
-	type Result struct {
-		//變數名大寫表public,給gin用
-		Status  string `json:"status"`
-		Message string `json:"message"`
-	}
 
-	var result = Result{
-		Status:  "OK",
-		Message: "This is Json",
-	}
-
-	c.JSON(http.StatusOK, result)
-}
-func para1(c *gin.Context) {
-	input := c.Query("input") //query為input的值
-	msg := []byte("輸入是:" + input)
-	c.Data(http.StatusOK, "text/plain; charset=utf-8", msg) //中文要加charset=utf-8
-}
-func para2(c *gin.Context) {
-	input := c.Param("input") //路徑input的值
-	c.String(http.StatusOK, input)
-}
-func post(c *gin.Context) {
-	msg := c.DefaultPostForm("input", "no input")
-	c.String(http.StatusOK, msg)
-}
-func any(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
-}
-
-func deposit(c *gin.Context) {
-	input := c.Param("input")
-	amount, err := strconv.Atoi(input) //str to int
-	if err == nil {
-		if amount < 0 {
-			wrapResponse(c, 0, errors.New("存入失敗, 存入金額小於0"))
-		} else {
-			balence += amount
-			wrapResponse(c, balence, nil)
-		}
-	} else {
-		wrapResponse(c, 0, errors.New("存入失敗, 請輸入數字"))
-	}
-}
-func withdraw(c *gin.Context) {
-	input := c.Param("input")
-	amount, err := strconv.Atoi(input) //str to int
-	if err == nil {
-		if amount < 0 {
-			wrapResponse(c, 0, errors.New("扣款失敗, 扣款金額小於0"))
-		} else {
-			if (balence - amount) < 0 {
-				wrapResponse(c, 0, errors.New("扣款失敗, 扣款後金額小於0"))
-			} else {
-				balence -= amount
-				wrapResponse(c, balence, nil)
-			}
-		}
-	} else {
-		wrapResponse(c, 0, errors.New("扣款失敗, 請輸入數字"))
-	}
-}
-func getBalence(c *gin.Context) {
-	wrapResponse(c, balence, nil)
-}
-func wrapResponse(c *gin.Context, amount int, err error) {
-	var r = struct {
-		Amount  int    `json:"amount"`
-		Status  string `json:"status"`
-		Message string `json:"message"`
-	}{
-		Amount:  amount,
-		Status:  "ok",
-		Message: "",
-	}
-
-	if err != nil {
-		r.Amount = 0
-		r.Status = "failed"
-		r.Message = err.Error()
-	}
-	c.JSON(http.StatusOK, r)
-}
 func checkErr(err error) {
 	if err != nil {
 		panic(err)
