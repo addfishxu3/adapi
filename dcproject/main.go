@@ -18,6 +18,9 @@ import (
 
 	"github.com/biter777/countries"
 	_ "github.com/go-sql-driver/mysql"
+
+	"github.com/gin-contrib/cache"
+	"github.com/gin-contrib/cache/persistence"
 )
 
 type Gender string
@@ -48,10 +51,12 @@ func main() {
 	r := gin.Default()
 	//可接受uri大小寫不同
 	r.RedirectFixedPath = true 
+	//redis cahche(1 hour)
+	store := persistence.NewRedisCache("localhost:6379", "", time.Hour)
 	//Admin API
 	r.POST("/api/v1/ad", ad)
 	//Public API
-	r.GET("/api/v1/ad/get", public)
+	r.GET("/api/v1/ad/get", cache.CachePage(store, time.Hour, public))
 	r.Run(":8080")
 }
 
@@ -237,16 +242,16 @@ func public(c *gin.Context) {
 			if age != 0 && gender != "" && country != "" && platform != "" { //需有值
 				//查詢資料
 				//帶入指令
-				go search(age, gender, country, platform, limit, offset, c, ch)
+				go search(age, gender, country, platform, limit, offset, ch)
 			}
 
 		}
 	}
 
-	<-ch
+	c.Data(200, "application/json", <-ch)
 }
 
-func search(age int, gender string, country string, platform string, limit int, offset int, c *gin.Context, ch chan string) {
+func search(age int, gender string, country string, platform string, limit int, offset int, ch chan []byte) {
 	db, err := sql.Open("mysql", "root:@(127.0.0.1:3306)/sys?charset=utf8")
 	checkErr(err)
 	defer db.Close()
@@ -277,8 +282,7 @@ func search(age int, gender string, country string, platform string, limit int, 
 	getItems["items"] = adlist
 
 	j, _ := json.Marshal(getItems)
-	c.Data(200, "application/json", j)
-	ch <- "D"
+	ch <- j
 }
 
 //admin產生廣告(同時間的不超過1000/每天產生不超過3000)>存redis db>public看條件(需要輸入錯誤處理)取廣告>寫test
