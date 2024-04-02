@@ -20,28 +20,22 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// enum
-const ( //Gender
+type Gender string
+const ( 
 	M Gender = "M"
 	F Gender = "F"
 )
 
-type Gender string
-
-const ( //Country
-	TW Country = "TW"
-	JP Country = "JP"
-)
-
 type Country string
 
-const ( //Platform
+type Platform string
+const ( 
 	android Platform = "android"
 	ios     Platform = "ios"
 	web     Platform = "web"
 )
 
-type Platform string
+
 type conditions struct {
 	AgeStart int        `json:"ageStart"`
 	AgeEnd   int        `json:"ageEnd"`
@@ -52,12 +46,13 @@ type conditions struct {
 
 func main() {
 	r := gin.Default()
-	r.RedirectFixedPath = true //可接受uri大小寫不同
+	//可接受uri大小寫不同
+	r.RedirectFixedPath = true 
 	//Admin API
 	r.POST("/api/v1/ad", ad)
 	//Public API
 	r.GET("/api/v1/ad/get", public)
-	r.Run(":8080") // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
+	r.Run(":8080")
 }
 
 func checkErr(err error) {
@@ -67,9 +62,6 @@ func checkErr(err error) {
 }
 func ad(c *gin.Context) {
 
-	//參數,日期驗證
-	//條件
-	//不限制預設""，查詢用||col=""；多值連字串，查詢用like；
 
 	type adCreate struct {
 		Title      string       `json:"title"`
@@ -81,29 +73,37 @@ func ad(c *gin.Context) {
 
 	title := c.PostForm("title")
 
+	//驗證startAt、endAt的格式、時間邏輯
 	timeformat := "2006-01-02T15:04:05Z"
 	startAt, err := time.Parse(timeformat, c.PostForm("startat"))
 	checkErr(err)
 	endAt, err := time.Parse(timeformat, c.PostForm("endat"))
 	checkErr(err)
+	if startAt.After(endAt) {
+		err := errors.New("時間錯誤")
+		checkErr(err)
+	}
 
+	//驗證ageStart、ageEnd的格式、負數內容，預設1~100
 	ageStart, err := strconv.Atoi(c.DefaultPostForm("agestart", "1")) //預設1
 	checkErr(err)
-	ageEnd, err := strconv.Atoi(c.DefaultPostForm("ageend", "100"))
+	ageEnd, err := strconv.Atoi(c.DefaultPostForm("ageend", "100"))//預設100
 	checkErr(err)
-	if !(ageStart >= 1 && ageStart <= 100) { //負數
-		ageStart = 1 //預設1
+	if !(ageStart >= 1 && ageStart <= 100) { 
+		ageStart = 1 
 	}
 	if !(ageEnd >= 1 && ageEnd <= 100) {
 		ageEnd = 100
 	}
-
+	
+	//驗證gender的內容
 	var gender Gender = "" //不限制
 	getgender := c.PostForm("gender")
 	if getgender == "M" || getgender == "F" {
 		gender = Gender(getgender)
 	}
 
+	//驗證country的內容，多值連字串存入
 	var countrystr strings.Builder
 	var country []Country = []Country{}
 	getcountry := c.PostFormArray("country")
@@ -117,6 +117,7 @@ func ad(c *gin.Context) {
 		countrystr.WriteString("") //不限制
 	}
 
+	//驗證platform的內容，多值連字串存入
 	var platformstr strings.Builder
 	var platform []Platform = []Platform{}
 	getplatform := c.PostFormArray("platform")
@@ -130,33 +131,35 @@ func ad(c *gin.Context) {
 	if platformstr.Len() == 0 {
 		countrystr.WriteString("") //不限制
 	}
-	//下面處理不限制
 
+	//連結DB(mysql)
 	db, err := sql.Open("mysql", "root:@(127.0.0.1:3306)/sys?charset=utf8")
 	checkErr(err)
 	defer db.Close()
-
+	
+	//設定每天產生廣告不超過3000
 	var sameCreateDate int
 	errSD := db.QueryRow("SELECT COUNT(*) FROM sys.adinfo WHERE date(createAt)=date(NOW())").Scan(&sameCreateDate)
 	checkErr(errSD)
 
-	if sameCreateDate < 3000 { //每天產生廣告不超過3000
+	if sameCreateDate < 3000 { 
 
+		//設定同時間的活躍廣告(startat<now)不超過1000
 		var activeAd int
-		errAA := db.QueryRow("SELECT COUNT(*) FROM sys.adinfo WHERE startAt<NOW()<endAt").Scan(&activeAd)
+		errAA := db.QueryRow("SELECT COUNT(*) FROM sys.adinfo WHERE  now() between startAt and endAt").Scan(&activeAd)
 		checkErr(errAA)
 
-		if activeAd < 1000 { //同時間的活躍廣告(startat<now)不超過1000 //or 找最快endat 如果endat<輸入的startat就ok
+		if activeAd < 1000 { 
+			//新增廣告
 			stmt, err := db.Prepare("INSERT adinfo SET title=?,createAt=NOW(),startAt=?,endAt=?,ageStart=?,ageEnd=?,gender=?,country=?,platform=?")
 			checkErr(err)
-
 			res, err := stmt.Exec(title, startAt, endAt, ageStart, ageEnd, gender, countrystr.String(), platformstr.String())
 			checkErr(err)
-			//con,plat存連續字串
-			ra, err := res.RowsAffected()
+			r, err := res.RowsAffected()
 			checkErr(err)
-			fmt.Println("insert", ra, "row(s).")
-
+			fmt.Println("insert", r, "row(s).")
+			
+			//顯示廣告內容
 			var con = []conditions{
 				{
 					AgeStart: ageStart,
@@ -174,10 +177,10 @@ func ad(c *gin.Context) {
 			}
 			c.JSON(200, ad1)
 		} else {
-			fmt.Println("同時間的廣告超過1000")
+			c.String(200,"同時間的廣告超過1000")
 		}
 	} else {
-		fmt.Println("每天產生廣告超過3000")
+		c.String(200,"每天產生廣告超過3000")
 	}
 }
 
