@@ -67,7 +67,6 @@ func checkErr(err error) {
 }
 func ad(c *gin.Context) {
 
-
 	type adCreate struct {
 		Title      string       `json:"title"`
 		StartAt    time.Time    `json:"startAt"`
@@ -89,7 +88,7 @@ func ad(c *gin.Context) {
 		checkErr(err)
 	}
 
-	//驗證ageStart、ageEnd的格式、負數內容，預設1~100
+	//驗證ageStart、ageEnd的格式、範圍，預設1~100
 	ageStart, err := strconv.Atoi(c.DefaultPostForm("agestart", "1")) //預設1
 	checkErr(err)
 	ageEnd, err := strconv.Atoi(c.DefaultPostForm("ageend", "100"))//預設100
@@ -190,23 +189,27 @@ func ad(c *gin.Context) {
 }
 
 func public(c *gin.Context) {
-	//查詢條件都要給
+
+	//goroutine channel
 	ch := make(chan string)
-	//if query沒有給值,空白==""
+	
+	//驗證offset為數字
 	var err error
 	var offset int = 0 //offset預設0
 	if c.Query("offset") != "" {
-		offset, err = strconv.Atoi(c.Query("offset")) //跳過筆數//int,>=0
+		offset, err = strconv.Atoi(c.Query("offset"))
 		checkErr(err)
 	}
 
-	var limit int = 5
+	//驗證limit為數字
+	var limit int = 5//limit預設5
 	if c.Query("limit") != "" {
-		limit, err = strconv.Atoi(c.Query("limit")) //取多少筆(1~100,def 5)//int,1-100
+		limit, err = strconv.Atoi(c.Query("limit")) 
 		checkErr(err)
 	}
-
-	var age int = 0 //判斷數字而已
+	
+	//判斷age為數字、範圍(需在1~100之間)
+	var age int = 0 
 	if c.Query("age") != "" {
 		//有age值
 		age, err = strconv.Atoi(c.Query("age"))
@@ -216,6 +219,7 @@ func public(c *gin.Context) {
 		}
 	}
 
+	//驗證gender內容(M或F)
 	var gender string = ""
 	if c.Query("gender") != "" {
 		if Gender(c.Query("gender")) == M || Gender(c.Query("gender")) == F {
@@ -223,6 +227,7 @@ func public(c *gin.Context) {
 		}
 	}
 
+	//驗證country內容
 	var country string = ""
 	if c.Query("country") != "" {
 		if countries.ByName(c.Query("country")).IsValid() {
@@ -230,6 +235,7 @@ func public(c *gin.Context) {
 		}
 	}
 
+	//驗證platform內容(web或ios或android)
 	var platform string = ""
 	if c.Query("platform") != "" {
 		if Platform(c.Query("platform")) == web || Platform(c.Query("platform")) == ios || Platform(c.Query("platform")) == android {
@@ -237,11 +243,10 @@ func public(c *gin.Context) {
 		}
 	}
 
-	if offset >= 0 { //檢查負數
-		if limit >= 1 && limit <= 100 { //檢查1~100
-			if age != 0 && gender != "" && country != "" && platform != "" { //需有值
-				//查詢資料
-				//帶入指令
+	if offset >= 0 { //檢查offset負數
+		if limit >= 1 && limit <= 100 { //檢查limit1~100
+			if age != 0 && gender != "" && country != "" && platform != "" { //條件需有正確值
+				//查詢廣告資料
 				go search(age, gender, country, platform, limit, offset, ch)
 			}
 
@@ -252,11 +257,12 @@ func public(c *gin.Context) {
 }
 
 func search(age int, gender string, country string, platform string, limit int, offset int, ch chan []byte) {
+	
 	db, err := sql.Open("mysql", "root:@(127.0.0.1:3306)/sys?charset=utf8")
 	checkErr(err)
 	defer db.Close()
 
-	//拼接query不安全，用?取代
+	//用?帶入查詢資料
 	rows, err := db.Query("SELECT title, endAt FROM sys.adinfo WHERE startAt<NOW() && endAt>NOW() && ageStart<? && ageEnd>? && (gender=? || gender=\"\") &&(country LIKE ? || country=\"\") &&(platform LIKE ? || platform =\"\") ORDER BY endAt ASC LIMIT ? OFFSET ?",
 		age, age, gender, country, platform, limit, offset)
 	checkErr(err)
@@ -267,12 +273,15 @@ func search(age int, gender string, country string, platform string, limit int, 
 	}
 	var adlist []adinfo
 	getItems := make(map[string][]adinfo)
+	
+	//取出資料
 	for rows.Next() {
 		var title string
 		var endAt string
+		
 		err = rows.Scan(&title, &endAt)
 		checkErr(err)
-		//json
+		
 		ad := adinfo{
 			Title: title,
 			EndAt: endAt,
@@ -284,6 +293,3 @@ func search(age int, gender string, country string, platform string, limit int, 
 	j, _ := json.Marshal(getItems)
 	ch <- j
 }
-
-//admin產生廣告(同時間的不超過1000/每天產生不超過3000)>存redis db>public看條件(需要輸入錯誤處理)取廣告>寫test
-//github readme 寫設計理念
