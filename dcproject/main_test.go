@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_ad(t *testing.T) {
+func Test_admin(t *testing.T) {
 	//https://juejin.cn/post/7140302505006596133
 	//使用gin的Router
 	r := setupRoute()
@@ -82,5 +82,5 @@ func Test_public_fail(t *testing.T) {
 	// 使用http服務
 	r.ServeHTTP(w, req)
 
-	assert.Equal(t, 202, w.Code)
+	assert.Equal(t, 400, w.Code)
 }
