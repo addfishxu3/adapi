@@ -4,21 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
 	"strings"
 	"time"
-
 	"net/http"
 	"strconv"
-
-
-
 	"github.com/gin-gonic/gin"
 	"database/sql"
-
 	"github.com/biter777/countries"
 	_ "github.com/go-sql-driver/mysql"
-
 	"github.com/gin-contrib/cache"
 	"github.com/gin-contrib/cache/persistence"
 )
@@ -48,6 +41,10 @@ type conditions struct {
 }
 
 func main() {
+	server := setupRoute()
+	server.Run(":8080")
+}
+func setupRoute() *gin.Engine{
 	r := gin.Default()
 	//可接受uri大小寫不同
 	r.RedirectFixedPath = true 
@@ -57,16 +54,14 @@ func main() {
 	r.POST("/api/v1/ad", ad)
 	//Public API
 	r.GET("/api/v1/ad/get", cache.CachePage(store, time.Hour, public))
-	r.Run(":8080")
+	return r
 }
-
 func checkErr(err error) {
 	if err != nil {
 		panic(err)
 	}
 }
 func ad(c *gin.Context) {
-
 	type adCreate struct {
 		Title      string       `json:"title"`
 		StartAt    time.Time    `json:"startAt"`
@@ -79,9 +74,9 @@ func ad(c *gin.Context) {
 
 	//驗證startAt、endAt的格式、時間邏輯
 	timeformat := "2006-01-02T15:04:05Z"
-	startAt, err := time.Parse(timeformat, c.PostForm("startat"))
+	startAt, err := time.Parse(timeformat, c.PostForm("startAt"))
 	checkErr(err)
-	endAt, err := time.Parse(timeformat, c.PostForm("endat"))
+	endAt, err := time.Parse(timeformat, c.PostForm("endAt"))
 	checkErr(err)
 	if startAt.After(endAt) {
 		err := errors.New("時間錯誤")
@@ -89,9 +84,9 @@ func ad(c *gin.Context) {
 	}
 
 	//驗證ageStart、ageEnd的格式、範圍，預設1~100
-	ageStart, err := strconv.Atoi(c.DefaultPostForm("agestart", "1")) //預設1
+	ageStart, err := strconv.Atoi(c.DefaultPostForm("ageStart", "1")) //預設1
 	checkErr(err)
-	ageEnd, err := strconv.Atoi(c.DefaultPostForm("ageend", "100"))//預設100
+	ageEnd, err := strconv.Atoi(c.DefaultPostForm("ageEnd", "100"))//預設100
 	checkErr(err)
 	if !(ageStart >= 1 && ageStart <= 100) { 
 		ageStart = 1 
@@ -137,7 +132,7 @@ func ad(c *gin.Context) {
 	}
 
 	//連結DB(mysql)
-	db, err := sql.Open("mysql", "root:@(127.0.0.1:3306)/sys?charset=utf8")
+	db, err := sql.Open("mysql", "root:@(localhost:3306)/sys?charset=utf8")
 	checkErr(err)
 	defer db.Close()
 	
@@ -181,10 +176,10 @@ func ad(c *gin.Context) {
 			}
 			c.JSON(200, ad1)
 		} else {
-			c.String(200,"同時間的廣告超過1000")
+			c.String(202,"同時間的廣告超過1000")
 		}
 	} else {
-		c.String(200,"每天產生廣告超過3000")
+		c.String(202,"每天產生廣告超過3000")
 	}
 }
 
@@ -248,17 +243,22 @@ func public(c *gin.Context) {
 			if age != 0 && gender != "" && country != "" && platform != "" { //條件需有正確值
 				//查詢廣告資料
 				go search(age, gender, country, platform, limit, offset, ch)
+			}else{
+				c.String(202, "查詢條件有誤")
 			}
-
+		}else{
+			c.String(202, "limit負數或大於100")
 		}
-	}
+	}else{
+		c.String(202, "offset負數")
+		}
 
 	c.Data(200, "application/json", <-ch)
 }
 
 func search(age int, gender string, country string, platform string, limit int, offset int, ch chan []byte) {
 	
-	db, err := sql.Open("mysql", "root:@(127.0.0.1:3306)/sys?charset=utf8")
+	db, err := sql.Open("mysql", "root:@(localhost:3306)/sys?charset=utf8")
 	checkErr(err)
 	defer db.Close()
 
