@@ -51,7 +51,7 @@ func setupRoute() *gin.Engine{
 	//redis cahche(1 hour)
 	store := persistence.NewRedisCache("localhost:6379", "", time.Hour)
 	//Admin API
-	r.POST("/api/v1/ad", ad)
+	r.POST("/api/v1/ad", admin)
 	//Public API
 	r.GET("/api/v1/ad/get", cache.CachePage(store, time.Hour, public))
 	return r
@@ -61,7 +61,7 @@ func checkErr(err error) {
 		panic(err)
 	}
 }
-func ad(c *gin.Context) {
+func admin(c *gin.Context) {
 	type adCreate struct {
 		Title      string       `json:"title"`
 		StartAt    time.Time    `json:"startAt"`
@@ -176,10 +176,10 @@ func ad(c *gin.Context) {
 			}
 			c.JSON(200, ad1)
 		} else {
-			c.String(202,"同時間的廣告超過1000")
+			c.String(400,"同時間的廣告超過1000")
 		}
 	} else {
-		c.String(202,"每天產生廣告超過3000")
+		c.String(400,"每天產生廣告超過3000")
 	}
 }
 
@@ -243,17 +243,17 @@ func public(c *gin.Context) {
 			if age != 0 && gender != "" && country != "" && platform != "" { //條件需有正確值
 				//查詢廣告資料
 				go search(age, gender, country, platform, limit, offset, ch)
+				c.Data(200, "application/json", <-ch)
 			}else{
-				c.String(202, "查詢條件有誤")
+				c.String(400, "")//"查詢條件有誤"
 			}
 		}else{
-			c.String(202, "limit負數或大於100")
+			c.String(400, "")//"limit負數或大於100"
 		}
 	}else{
-		c.String(202, "offset負數")
-		}
+		c.String(400, "")//"offset負數"
+	}
 
-	c.Data(200, "application/json", <-ch)
 }
 
 func search(age int, gender string, country string, platform string, limit int, offset int, ch chan []byte) {
