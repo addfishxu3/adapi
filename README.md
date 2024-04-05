@@ -9,7 +9,7 @@
 
 **準備**
 
-創建一個`gin`資料庫，建立儲存廣告資料的SQL(http)
+創建一個`gin`資料庫，建立儲存廣告資料的[SQL](https://github.com/addfishxu3/adapi/tree/main/doc/mysql)
 
 **運行**
 ````
