@@ -149,6 +149,7 @@ func admin(c *gin.Context) {
 
 		if activeAd < 1000 { 
 			//新增廣告
+			//?帶入值，防sql injection
 			stmt, err := db.Prepare("INSERT adinfo SET title=?,createAt=NOW(),startAt=?,endAt=?,ageStart=?,ageEnd=?,gender=?,country=?,platform=?")
 			checkErr(err)
 			res, err := stmt.Exec(title, startAt, endAt, ageStart, ageEnd, gender, countrystr.String(), platformstr.String())
@@ -273,7 +274,7 @@ func search(age int, gender string, country string, platform string, limit int, 
 	var adlist []adinfo
 	getItems := make(map[string][]adinfo)
 	
-	//取出資料
+	//取出每列資料
 	for rows.Next() {
 		var title string
 		var endAt string
@@ -289,6 +290,7 @@ func search(age int, gender string, country string, platform string, limit int, 
 	}
 	getItems["items"] = adlist
 
+	//結果存入channel
 	j, _ := json.Marshal(getItems)
 	ch <- j
 }
