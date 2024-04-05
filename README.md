@@ -4,10 +4,11 @@
 ## 如何運行
 
 **需要**
-_Mysql
-+Redis
++ Mysql
++ Redis
 
 **準備**
+
 創建一個`gin`資料庫，建立儲存廣告資料的SQL(http)
 
 **運行**
@@ -29,7 +30,7 @@ $ go run main.go
 [GIN-debug] Listening and serving HTTP on :8080
 ````
 
-##單元測試
+## 單元測試
 
 **測試**
 ````
