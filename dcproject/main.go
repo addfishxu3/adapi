@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"net/http"
 	"strconv"
 	"github.com/gin-gonic/gin"
 	"database/sql"
@@ -186,7 +185,7 @@ func admin(c *gin.Context) {
 func public(c *gin.Context) {
 
 	//goroutine channel
-	ch := make(chan string)
+	ch := make(chan []byte)
 	
 	//驗證offset為數字
 	var err error
