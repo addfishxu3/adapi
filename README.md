@@ -1,11 +1,11 @@
-# Go Gin 廣告投放服務(https://github.com/addfishxu3/adapi)
+# Go Gin 廣告投放服務
 使用`gin`框架，撰寫api服務
 
 ## 如何運行
 
 **需要**
 _Mysql
-_Redis
++Redis
 
 **準備**
 創建一個`gin`資料庫，建立儲存廣告資料的SQL(http)
@@ -28,6 +28,7 @@ $ go run main.go
 
 [GIN-debug] Listening and serving HTTP on :8080
 ````
+
 ##單元測試
 
 **測試**
