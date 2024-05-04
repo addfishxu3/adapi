@@ -34,7 +34,7 @@ $ go run main.go
 
 **測試**
 
-執行[test檔](dcproject/routers/main_test.go)
+執行[test檔](dcproject/main_test.go)
 ````
 $ cd $GOPATH/src/dcproject
 
