@@ -17,7 +17,7 @@ $ cd $GOPATH/src/dcproject
 
 $ go run main.go
 ````
-專案資料及運行的API
+專案資料及運行的[API](dcproject/routers/api/v1/api.go)
 
 ````
 [GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
@@ -33,6 +33,8 @@ $ go run main.go
 ## 單元測試
 
 **測試**
+
+執行[test檔](dcproject/routers/main_test.go)
 ````
 $ cd $GOPATH/src/dcproject
 
